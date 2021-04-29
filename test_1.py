@@ -6,7 +6,7 @@
 
 # To Dos
 # 1. Metadaten ermitteln, Akkumulation wie viele Stundne pro Schritt
-# 2. stündliche Raster berechnen
+# 2. st��ndliche Raster berechnen
 # 3. Resample des Rasters auf 1km2 respektive 2km2
 
 # from .cfcoords import translate_coords
@@ -15,7 +15,7 @@ import xarray as xr
 import cf2cdm
 import cfgrib
 import os
-import netCDF4
+# import netCDF4
 import numpy as numpy
 import pandas as pd
 import rasterio
@@ -32,8 +32,8 @@ ds.sizes
 ds.data_vars
 ds.coords
 ds.values()
-time = ds.__getitem__('time') # 743 Zeitschritte --> für jede Stunde ein Raster
-tp = ds.__getitem__('tp') # 743 Zeitschritte --> für jede Stunde ein Raster
+time = ds.__getitem__('time') # 743 Zeitschritte --> f��r jede Stunde ein Raster
+tp = ds.__getitem__('tp') # 743 Zeitschritte --> f��r jede Stunde ein Raster
 steps = ds.__getitem__('step')
 time.values[1]
 tp.dims
@@ -59,19 +59,19 @@ for counter, h in enumerate(date.hour):
     +', hour: ' + str(h))
     if h in [2, 8, 14, 20]: # Wenn Stunde 2 Uhr, dann muss 2-1 gerechnet werden
         tp_2[counter,1,:,:].values = (tp[counter,1,:,:].values - tp[counter-1,0,:,:].values)
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     if h in [3, 9, 15, 21]: # 3 Uhr --> 3-2
         tp_2[counter,2,:,:].values = tp[counter,2,:,:].values - tp[counter-1,1,:,:].values
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     if h in [4, 10, 16, 22]: # 3 Uhr --> 3-2
         tp_2[counter,3,:,:].values = tp[counter,3,:,:].values - tp[counter-1,2,:,:].values
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     if h in [5, 11, 17, 23]: # 3 Uhr --> 3-2
         tp_2[counter,4,:,:].values = tp[counter,4,:,:].values - tp[counter-1,3,:,:].values
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     if h in [6, 12, 18, 0]: # 3 Uhr --> 3-2
         tp_2[counter,5,:,:].values = tp[counter,5,:,:].values - tp[counter-1,4,:,:].values
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     #break
 zeitpunkt_h2_after = tp_2[2,1,:,:]
 # create Data array
@@ -89,19 +89,19 @@ for counter, h in enumerate(date.hour):
         print(str(counter) + ' kopiert')
     if h in [2, 8, 14, 20]:  # Wenn Stunde 2 Uhr, dann muss 2-1 gerechnet werden
         tmp[counter, :, :] = tp[counter, 1, :, :] - tp[counter - 1, 0, :, :]
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     if h in [3, 9, 15, 21]:  # 3 Uhr --> 3-2
         tmp[counter, :, :] = tp[counter, 2, :, :] - tp[counter - 1, 1, :, :]
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     if h in [4, 10, 16, 22]:  # 3 Uhr --> 3-2
         tmp[counter, :, :] = tp[counter, 3, :, :] - tp[counter - 1, 2, :, :]
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     if h in [5, 11, 17, 23]:  # 3 Uhr --> 3-2
         tmp[counter, :, :] = tp[counter, 4, :, :] - tp[counter - 1, 3, :, :]
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
     if h in [6, 12, 18, 0]:  # 3 Uhr --> 3-2
         tmp[counter, :, :] = tp[counter, 5, :, :] - tp[counter - 1, 4, :, :]
-        print(str(counter) + ' geändert')
+        print(str(counter) + ' ge��ndert')
 
 # make a double sized array and then merge, then divide by 4
 # data = numpy.ndarray([tmp.shape[0], tmp.shape[1]-1, tmp.shape[2]-1])
