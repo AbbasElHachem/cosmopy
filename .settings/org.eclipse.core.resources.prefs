@@ -1,4 +1,6 @@
 eclipse.preferences.version=1
+encoding/_00_additional_functions.py=utf-8
+encoding/_01_prepare_REA2_data_extract_stns_loc.py=utf-8
+encoding/_03_prepare_REA6_data_extract_stns_loc.py=utf-8
 encoding/read_hdf5.py=utf-8
 encoding/test_1.py=UTF-8
-encoding/test_1_abbas.py=utf-8
