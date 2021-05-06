@@ -121,7 +121,7 @@ for _year in list_years:
         date = pd.to_datetime(time.values)
 
         tp_2 = tp
-        zeitpunkt_h2 = tp[2, 1, :, :].values
+        zeitpunkt_h2 = tp[2, :, :].values
         for counter, h in enumerate(date.hour):
             #             print('counter: ' + str(counter) +
             #                   '/' + str(len(date.hour))
