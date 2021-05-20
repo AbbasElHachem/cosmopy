@@ -29,22 +29,22 @@ from scipy.stats import pearsonr as prs
 
 from _00_additional_functions import resampleDf, get_cdf_part_abv_thr
 
-modulepath = r'/home/abbas/Documents/Resample-ReprojectCosmoRea2-6-master'
-sys.path.append(modulepath)
+# modulepath = r'/home/abbas/Documents/Resample-ReprojectCosmoRea2-6-master'
+# sys.path.append(modulepath)
 
 from read_hdf5 import HDF5
 
 path_dwd_data = (r"/home/abbas/Documents/REA2"
-                 r"/dwd_comb_5min_data_agg_5min_2020_flagged_Hannover.h5")
+                 r"/dwd_comb_1min_data_agg_60min_2020_gk3.h5")
 
 
-path_to_all_rea2_files = r'/run/media/abbas/EL Hachem 2019/REA_Pcp'
+path_to_all_rea2_files = r'/run/media/abbas/EL Hachem 2019/REA_Pcp/pcp_all_Dwd_stns'
 
-list_years = np.arange(2013, 2014, 1)
+list_years = np.arange(2007, 2008, 1)
 
 percentile_level = 0.99
 
-test_for_extremes = False
+test_for_extremes = True
 
 dwd_hdf5 = HDF5(infile=path_dwd_data)
 dwd_ids = dwd_hdf5.get_all_names()
@@ -79,8 +79,11 @@ for _year in list_years:
     pcp_Rea = [df for df in all_grib_files if str(_year) in df]
     in_df_rea2 = pd.read_csv(pcp_Rea[0], sep=';',
                              index_col=0,
-                             parse_dates=True,
-                             infer_datetime_format=True)
+                             #                              parse_dates=True,
+                             #                              infer_datetime_format=True,
+                             engine='c')
+    in_df_rea2.index = pd.to_datetime(in_df_rea2.index,
+                                      format='%Y-%m-%d %H:%M:%S')
     # read data and get station ids and coords
 
     dwd_pcp = dwd_hdf5.get_pandas_dataframe_between_dates(
@@ -90,36 +93,36 @@ for _year in list_years:
 
     dwd_pcp_hourly = resampleDf(dwd_pcp, 'H')
 
-    for _ii in range(len(dwd_ids)):
-        cmn_idx = dwd_pcp_hourly.iloc[:, _ii].dropna().index.intersection(
-            in_df_rea2.iloc[:, _ii].dropna().index)
-
-        plt.ioff()
-        plt.figure(figsize=(12, 8), dpi=100)
-        plt.plot(range(len(cmn_idx)),
-                 np.cumsum(in_df_rea2.loc[
-                     cmn_idx, dwd_ids[_ii]].dropna().values), alpha=0.5,
-                 c='b', label='REA2')
-
-        plt.plot(range(len(cmn_idx)),
-                 np.cumsum(dwd_pcp_hourly.loc[
-                     cmn_idx, dwd_ids[_ii]].values), alpha=0.95,
-                 c='r', label='DWD')
-
-        plt.title('Cummulative Sum Year %d' % _year)
-        plt.grid()
-        plt.legend(loc=0)
-        plt.savefig(os.path.join(
-            r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
-            r'cum_sum_%s_%d.png' % (dwd_ids[_ii], _year)))
-        plt.close()
-        break
+#     for _ii in range(len(dwd_ids[:50])):
+#         cmn_idx = dwd_pcp_hourly.iloc[:, _ii].dropna().index.intersection(
+#             in_df_rea2.iloc[:, _ii].dropna().index)
+#
+#         plt.ioff()
+#         plt.figure(figsize=(12, 8), dpi=100)
+#         plt.plot(range(len(cmn_idx)),
+#                  np.cumsum(in_df_rea2.loc[
+#                      cmn_idx, dwd_ids[_ii]].dropna().values), alpha=0.5,
+#                  c='b', label='REA2')
+#
+#         plt.plot(range(len(cmn_idx)),
+#                  np.cumsum(dwd_pcp_hourly.loc[
+#                      cmn_idx, dwd_ids[_ii]].values), alpha=0.95,
+#                  c='r', label='DWD')
+#
+#         plt.title('Cummulative Sum Year %d' % _year)
+#         plt.grid()
+#         plt.legend(loc=0)
+#         plt.savefig(os.path.join(
+#             r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
+#             r'cum_sum_%s_%d.png' % (dwd_ids[_ii], _year)))
+#         plt.close()
+#         break
 
     df_distance_corr = pd.DataFrame(index=dwd_ids)
-    for _ii in range(len(dwd_ids)):
+    for _ii in range(len(dwd_ids[:50])):
         print(_ii, '/', len(dwd_ids))
         stn_id = dwd_ids[_ii]
-        stn_id = 'P04112'
+#         stn_id = 'P04112'
         x_dwd_interpolate = dwd_coords_utm32.loc[stn_id, 'X']
         y_dwd_interpolate = dwd_coords_utm32.loc[stn_id, 'Y']
 
@@ -145,8 +148,7 @@ for _year in list_years:
         # calc rank correlation
 
         df_dwd1 = dwd_pcp_hourly.loc[:, stn_id].dropna(how='any')
-        df_dwd1.plot()
-        dwd_pcp.loc[:, stn_id].plot()
+
         df_rea1 = in_df_rea2.loc[:, stn_id].dropna(how='any')
 
         df_rea1[df_rea1 < 0] = 0
@@ -182,7 +184,11 @@ for _year in list_years:
                     cmn_rea2 = df_rea2.loc[cmn_idx].values.ravel()
     #                 np.nansum(df_dwd1)
     #                 df_dwd1.max()
-                    spr_corr = spr(cmn_vals1, cmn_vals2)[0]
+                    try:
+                        spr_corr = spr(cmn_vals1, cmn_vals2)[0]
+                    except Exception as msg:
+                        print(msg)
+                        pass
                     prs_corr = prs(cmn_vals1, cmn_vals2)[0]
                     sep_dist = distance_sorted[ix2]
 
@@ -203,7 +209,7 @@ for _year in list_years:
                         stn_id, 'spr_corr_rea_%s' % _id2] = prs_corr_rea
 #             break
 #         break
-
+    print('plotting')
     all_cols = df_distance_corr.columns.to_list()
     idx_cols_distance = [_col for _col in all_cols if 'dist' in _col]
     idx_cols_prs_dwd = [_col for _col in all_cols
@@ -242,11 +248,11 @@ for _year in list_years:
     if test_for_extremes:
         plt.savefig(os.path.join(
             r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
-            r'indic_corr_all_%d.png' % (_year)))
+            r'indic_corr_all_%d_DE.png' % (_year)))
     else:
         plt.savefig(os.path.join(
             r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
-            r'prs_corr_all_%d.png' % (_year)))
+            r'prs_corr_all_%d_DE.png' % (_year)))
     plt.close()
 
     if not test_for_extremes:
@@ -265,54 +271,54 @@ for _year in list_years:
 
         plt.savefig(os.path.join(
             r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
-            r'spr_corr_all_%d.png' % (_year)))
+            r'spr_corr_all_%d_DE.png' % (_year)))
         plt.close()
 
     #==========================================================================
     # every stn
     #==========================================================================
-    for _id in df_distance_corr.index:
-        distances = df_distance_corr.loc[_id, idx_cols_distance]
-        prs_corr_dwd = df_distance_corr.loc[_id, idx_cols_prs_dwd]
-        spr_corr_dwd = df_distance_corr.loc[_id, idx_cols_spr_dwd]
-        prs_corr_rea = df_distance_corr.loc[_id, idx_cols_prs_dwd_rea]
-        spr_corr_rea = df_distance_corr.loc[_id, idx_cols_spr_dwd_rea]
-
-        plt.ioff()
-        plt.figure(figsize=(12, 8), dpi=200)
-        plt.scatter(distances, prs_corr_dwd, c='r', label='DWD', marker='X',
-                    alpha=0.8)
-        plt.scatter(distances, prs_corr_rea, c='b', label='REA', marker='D',
-                    alpha=0.8)
-        plt.grid(alpha=0.5)
-        plt.legend(loc=0)
-        plt.xlabel('Distance [m]')
-        plt.ylabel('Pearson Correlation')
-        plt.ylim([0, 1.01])
-
-        plt.savefig(os.path.join(
-            r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
-            r'prs_corr_%s_%d.png' % (_id, _year)))
-        plt.close()
-        #======================================================================
-        #
-        #======================================================================
-        plt.ioff()
-        plt.figure(figsize=(12, 8), dpi=200)
-        plt.scatter(distances, spr_corr_dwd, c='r', label='DWD', marker='X',
-                    alpha=0.8)
-        plt.scatter(distances, spr_corr_rea, c='b', label='REA', marker='D',
-                    alpha=0.8)
-        plt.grid()
-        plt.legend(loc=0)
-        plt.xlabel('Distance [m]')
-        plt.ylabel('Spearman Correlation')
-        plt.ylim([0, 1.01])
-
-        plt.savefig(os.path.join(
-            r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
-            r'spr_corr_%s_%d.png' % (_id, _year)))
-        plt.close()
+#     for _id in df_distance_corr.index:
+#         distances = df_distance_corr.loc[_id, idx_cols_distance]
+#         prs_corr_dwd = df_distance_corr.loc[_id, idx_cols_prs_dwd]
+#         spr_corr_dwd = df_distance_corr.loc[_id, idx_cols_spr_dwd]
+#         prs_corr_rea = df_distance_corr.loc[_id, idx_cols_prs_dwd_rea]
+#         spr_corr_rea = df_distance_corr.loc[_id, idx_cols_spr_dwd_rea]
+#
+#         plt.ioff()
+#         plt.figure(figsize=(12, 8), dpi=200)
+#         plt.scatter(distances, prs_corr_dwd, c='r', label='DWD', marker='X',
+#                     alpha=0.8)
+#         plt.scatter(distances, prs_corr_rea, c='b', label='REA', marker='D',
+#                     alpha=0.8)
+#         plt.grid(alpha=0.5)
+#         plt.legend(loc=0)
+#         plt.xlabel('Distance [m]')
+#         plt.ylabel('Pearson Correlation')
+#         plt.ylim([0, 1.01])
+#
+#         plt.savefig(os.path.join(
+#             r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
+#             r'prs_corr_%s_%d_DE.png' % (_id, _year)))
+#         plt.close()
+#         #======================================================================
+#         #
+#         #======================================================================
+#         plt.ioff()
+#         plt.figure(figsize=(12, 8), dpi=200)
+#         plt.scatter(distances, spr_corr_dwd, c='r', label='DWD', marker='X',
+#                     alpha=0.8)
+#         plt.scatter(distances, spr_corr_rea, c='b', label='REA', marker='D',
+#                     alpha=0.8)
+#         plt.grid()
+#         plt.legend(loc=0)
+#         plt.xlabel('Distance [m]')
+#         plt.ylabel('Spearman Correlation')
+#         plt.ylim([0, 1.01])
+#
+#         plt.savefig(os.path.join(
+#             r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
+#             r'spr_corr_%s_%d_DE.png' % (_id, _year)))
+#         plt.close()
 #         break
 #         distrance_to_ngbrs_near = distrance_to_ngbrs[0][idx_distrance_to_ngbrs_near]
 #         df_distances = pd.DataFrame(
