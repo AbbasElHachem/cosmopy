@@ -119,7 +119,7 @@ for _year in list_years:
 #         break
 
     df_distance_corr = pd.DataFrame(index=dwd_ids)
-    for _ii in range(len(dwd_ids[:50])):
+    for _ii in range(len(dwd_ids)):
         print(_ii, '/', len(dwd_ids))
         stn_id = dwd_ids[_ii]
 #         stn_id = 'P04112'
