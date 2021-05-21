@@ -115,7 +115,7 @@ for _year in list_years:
     for _ii in range(len(dwd_ids[:100])):
         print(_ii, '/', len(dwd_ids))
         stn_id = dwd_ids[_ii]
-
+#         break
         x_dwd_interpolate = dwd_coords_utm32.loc[stn_id, 'X']
         y_dwd_interpolate = dwd_coords_utm32.loc[stn_id, 'Y']
 
@@ -180,6 +180,7 @@ for _year in list_years:
                 df_dwd1.max()
             for ix2, _id2 in enumerate(ids_sorted):
                 #                 print(ix2, '/', len(ids_sorted))
+                break
                 df_dwd2 = dwd_pcp_hourly.loc[:, _id2].dropna(how='any')
                 df_rea2 = in_df_rea2.loc[:, _id2].dropna(how='any')
                 df_rea2[df_rea2 < 0] = 0
@@ -202,15 +203,22 @@ for _year in list_years:
 
                     cmn_rea1 = df_rea1.loc[cmn_idx].values.ravel()
                     cmn_rea2 = df_rea2.loc[cmn_idx].values.ravel()
+
+#                     plt.scatter(cmn_rea1, cmn_rea2)
+#                     plt.scatter(cmn_vals1, cmn_vals2)
+#                     plt.scatter(cmn_rea2, cmn_vals2)
     #                 np.nansum(df_dwd1)
     #                 df_dwd1.max()
                     try:
+                        # DWD
                         spr_corr = spr(cmn_vals1, cmn_vals2)[0]
                         prs_corr = prs(cmn_vals1, cmn_vals2)[0]
                         sep_dist = distance_sorted[ix2]
 
+                        # REA2
                         spr_corr_rea = spr(cmn_rea1, cmn_rea2)[0]
                         prs_corr_rea = prs(cmn_rea1, cmn_rea2)[0]
+
         #             sep_dist_rea = distance_sorted[ix2]
                     except Exception as msg:
                         print(msg)
