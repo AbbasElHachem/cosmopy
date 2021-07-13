@@ -29,6 +29,8 @@ from scipy.stats import pearsonr as prs
 import tqdm
 from _00_additional_functions import resampleDf, get_cdf_part_abv_thr
 
+plt.rcParams.update({'font.size': 18})
+plt.rcParams.update({'axes.labelsize': 18})
 
 from read_hdf5 import HDF5
 
@@ -135,7 +137,7 @@ for _year in list_years:
 #         dropna=False).mean()
 
     plt.ioff()
-    plt.figure(figsize=(12, 8), dpi=200)
+    plt.figure(figsize=(16, 8), dpi=200)
     for _col in dwd_monthly_vals.columns:
         vals_stn = dwd_monthly_vals.loc[:, _col].values.ravel()
 
@@ -144,17 +146,18 @@ for _year in list_years:
             plt.plot(
                 dwd_monthly_vals.index,
                 vals_stn,
-                c='grey',
+                c='red',
                 alpha=0.5)
             plt.plot(
                 dwd_monthly_vals.index,
                 rea_vals_stn,
-                c='r',
+                c='grey',
                 alpha=0.5)
-    plt.title('Monthly sum - DWD (grey) - REA2 (red)')
+
     plt.grid(alpha=0.5)
-    plt.xlabel('Month-Year %s' % _year)
+    plt.xlabel('Month')
     plt.ylabel('Pcp Sum [mm/Month]')
+    plt.title('Yearly cycle \nDWD (red)-REA2 (grey) - Year %s' % _year)
     plt.xticks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     plt.savefig(os.path.join(
         out_save_dir,
@@ -164,7 +167,7 @@ for _year in list_years:
     plt.close()
 
     plt.ioff()
-    plt.figure(figsize=(12, 8), dpi=200)
+    plt.figure(figsize=(16, 8), dpi=200)
     for _col in dwd_hourly_vals_max.columns:
         vals_max = dwd_hourly_vals_max.loc[:, _col].dropna().values.ravel()
 #         vals_mean = dwd_hourly_vals_mean.loc[:, _col].values.ravel()
@@ -194,8 +197,11 @@ for _year in list_years:
 #                 alpha=0.5)
     plt.title('Hourly max-mean - DWD (red) - REA2 (grey)')
     plt.grid(alpha=0.5)
-    plt.xlabel('Hour of day - Year %s' % _year)
+    plt.xlabel('Hour of day')
     plt.ylabel('Pcp Max [mm/hour]')
+    plt.title(
+        'Diurnal cycle (max/hour/day)\nDWD (red) -REA2 (grey) - Year %s' %
+        _year)
     plt.xticks(dwd_hourly_vals_max.index.to_list())
     plt.savefig(os.path.join(
         out_save_dir,

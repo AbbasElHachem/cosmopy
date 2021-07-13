@@ -157,7 +157,8 @@ for _year in list_years:
             if test_for_extremes:
                 df_dwd1 = transform_to_bools(df_dwd1, percentile_level)
                 df_rea1 = transform_to_bools(df_rea1, percentile_level)
-                df_dwd1.max()
+                df_rea1[df_rea1 < 0] = 0
+                # df_dwd1.max()
             for ix2, _id2 in enumerate(ids_sorted):
                 #                 print(ix2, '/', len(ids_sorted))
                 df_dwd2 = dwd_pcp_hourly.loc[:, _id2].dropna(how='any')

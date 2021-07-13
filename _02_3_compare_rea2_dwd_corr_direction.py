@@ -37,6 +37,8 @@ from read_hdf5 import HDF5
 path_dwd_data = (r"/home/abbas/Documents/REA2"
                  r"/dwd_comb_5min_data_agg_5min_2020_flagged_Hannover.h5")
 
+out_dir = (
+    r"/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis/070621")
 
 path_to_all_rea2_files = r'/home/abbas/Documents/REA2/REA_Pcp'
 
@@ -112,7 +114,7 @@ for _year in list_years:
 
     angles_bin = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300,
                   330, 360]
-    for _ii in range(len(dwd_ids[:100])):
+    for _ii in range(len(dwd_ids)):
         print(_ii, '/', len(dwd_ids))
         stn_id = dwd_ids[_ii]
 #         break
@@ -180,7 +182,7 @@ for _year in list_years:
                 df_dwd1.max()
             for ix2, _id2 in enumerate(ids_sorted):
                 #                 print(ix2, '/', len(ids_sorted))
-                break
+
                 df_dwd2 = dwd_pcp_hourly.loc[:, _id2].dropna(how='any')
                 df_rea2 = in_df_rea2.loc[:, _id2].dropna(how='any')
                 df_rea2[df_rea2 < 0] = 0
@@ -333,13 +335,13 @@ for _year in list_years:
 
             if test_for_extremes:
                 plt.savefig(os.path.join(
-                    path_to_all_rea2_files,
+                    out_dir,
                     #             r'analysis',
                     r'%s_indic_corr_all_%d_rea_dwd_qt_%d.png' % (
                         _idx, _year, _qt)))
             else:
                 plt.savefig(os.path.join(
-                    path_to_all_rea2_files,
+                    out_dir,
                     #             '/analysis',
                     r'%s_prs_corr_all_%d_rea_dwd_qt_%d.png' % (
                         _idx, _year, _qt)))
