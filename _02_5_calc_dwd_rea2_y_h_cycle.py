@@ -63,35 +63,6 @@ all_grib_files = glob.glob('*.csv')
 
 aggs = ['60min', '120min', '180min', '360min', '720min', '1440min']
 
-
-def transform_to_bools(df_pcp, perc_thr):
-    dwd_cdf_x, dwd_cdf_y = get_cdf_part_abv_thr(
-        df_pcp.values.ravel(), -0.1)
-    # get dwd ppt thr from cdf
-    dwd_ppt_thr_per = dwd_cdf_x[np.where(
-        dwd_cdf_y >= perc_thr)][0]
-    idx_abv = np.where(df_pcp.values >= dwd_ppt_thr_per)[0]
-    idx_below = np.where(df_pcp.values < dwd_ppt_thr_per)[0]
-    df_pcp.iloc[idx_abv] = 1
-    df_pcp.iloc[idx_below] = 0
-
-    return df_pcp
-
-
-def getMeanPCP(in_pcp):
-
-    new_df_mean_vals = in_pcp.resample('M',
-                                       label='right',
-                                       closed='right').mean()
-    return new_df_mean_vals
-
-
-def getAnnualCycle(in_pcp):
-    # get annual cycle, average value
-    in_pcp_df_GB = in_pcp.groupby([in_pcp.index.dayofyear]).mean()
-    return in_pcp_df_GB
-
-
 for _year in list_years:
     print(_year)
     start_year = '01-01-%s 00:00:00' % _year

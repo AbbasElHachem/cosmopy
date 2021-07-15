@@ -26,10 +26,13 @@ import glob
 from scipy.spatial import distance
 from scipy.stats import spearmanr as spr
 from scipy.stats import pearsonr as prs
-from statsmodels.distributions.empirical_distribution import ECDF
+from sklearn.preprocessing import quantile_transform
+from scipy.stats import linregress
 
 import tqdm
-from _00_additional_functions import resampleDf, get_cdf_part_abv_thr
+from _00_additional_functions import (resampleDf,
+                                      get_cdf_part_abv_thr,
+                                      build_edf_fr_vals)
 
 modulepath = r'/home/abbas/Documents/Resample-ReprojectCosmoRea2-6-master'
 sys.path.append(modulepath)
@@ -46,7 +49,9 @@ list_years = np.arange(2007, 2008, 1)
 
 # percentile_level = 0.99
 
-test_for_extremes = True
+test_for_extremes = False
+calc_qq_corr = False
+calc_cross_corr = True
 
 dwd_hdf5 = HDF5(infile=path_dwd_data)
 dwd_ids = dwd_hdf5.get_all_names()
@@ -61,7 +66,7 @@ all_grib_files = glob.glob('*.csv')
 
 aggs = ['60min', '120min', '180min', '360min', '720min', '1440min']
 
-percentile_levels = [0.99, 0.97, 0.95, 0.93, 0.92, 0.9]
+percentile_levels = [0.995, 0.98, 0.97, 0.95, 0.93, 0.92]
 
 
 def transform_to_bools(df_pcp, perc_thr):
@@ -76,6 +81,22 @@ def transform_to_bools(df_pcp, perc_thr):
     df_pcp.iloc[idx_below] = 0
 
     return df_pcp
+
+
+def calc_cross_corr(vec1, vec2):
+
+    v1_norm = (vec1 - np.mean(vec1)) / (np.std(vec1) * len(vec1))
+    v2_norm = (vec2 - np.mean(vec2)) / (np.std(vec2))
+
+    cross_corr = np.correlate(v1_norm, v2_norm)
+    return cross_corr
+
+
+def rsquared(x, y):
+    """ Return R^2 where x and y are array-like."""
+
+    slope, intercept, r_value, p_value, std_err = linregress(x, y)
+    return r_value**2
 
 
 for _year in list_years:
@@ -159,13 +180,14 @@ for _year in list_years:
                                 df_rea2, percentile_level)
     #                         except Exception as msg:
     #                             print(msg)
-                        cmn_vals1 = df_dwd1.loc[cmn_idx].values.ravel()
-                        cmn_vals2 = df_dwd2.loc[cmn_idx].values.ravel()
 
-                        cmn_rea1 = df_rea1.loc[cmn_idx].values.ravel()
-                        cmn_rea2 = df_rea2.loc[cmn_idx].values.ravel()
-        #                 np.nansum(df_dwd1)
-        #                 df_dwd1.max()
+                        cmn_vals1 = df_dwd1.loc[cmn_idx]
+
+                        cmn_vals2 = df_dwd2.loc[cmn_idx]
+
+                        cmn_rea1 = df_rea1.loc[cmn_idx]
+                        cmn_rea2 = df_rea2.loc[cmn_idx]
+
                         try:
                             spr_corr = spr(cmn_vals1, cmn_vals2)[0]
                             prs_corr = prs(cmn_vals1, cmn_vals2)[0]
@@ -173,6 +195,12 @@ for _year in list_years:
 
                             spr_corr_rea = spr(cmn_rea1, cmn_rea2)[0]
                             prs_corr_rea = prs(cmn_rea1, cmn_rea2)[0]
+
+                            if calc_cross_corr:
+                                cross_corr_dwd = calc_cross_corr(
+                                    cmn_vals1, cmn_vals2)
+                                cross_corr_rea = calc_cross_corr(
+                                    cmn_rea1, cmn_rea2)
             #             sep_dist_rea = distance_sorted[ix2]
                         except Exception as msg:
                             print(msg)
@@ -190,6 +218,14 @@ for _year in list_years:
                             stn_id, 'pears_corr_rea_%s' % _id2] = spr_corr_rea
                         df_distance_corr.loc[
                             stn_id, 'spr_corr_rea_%s' % _id2] = prs_corr_rea
+
+                        if calc_cross_corr:
+                            df_distance_corr.loc[
+                                stn_id,
+                                'cross_corr_%s' % _id2] = cross_corr_dwd
+
+                            df_distance_corr.loc[
+                                stn_id, 'cross_corr_rea_%s' % _id2] = cross_corr_rea
     #             break
     #         break
 
@@ -204,7 +240,11 @@ for _year in list_years:
                                 if 'pears_corr' in _col and 'rea' in _col]
         idx_cols_spr_dwd_rea = [_col for _col in all_cols
                                 if 'spr_corr' in _col and 'rea' in _col]
-
+        if calc_cross_corr:
+            idx_cols_cross_dwd = [_col for _col in all_cols
+                                  if 'cross_corr' in _col and 'rea' not in _col]
+            idx_cols_cross_dwd_rea = [_col for _col in all_cols
+                                      if 'cross_corr' in _col and 'rea' in _col]
         #======================================================================
         # all stns
         #======================================================================
@@ -213,12 +253,85 @@ for _year in list_years:
         spr_corr_dwd = df_distance_corr.loc[:, idx_cols_spr_dwd]
         prs_corr_rea = df_distance_corr.loc[:, idx_cols_prs_dwd_rea]
         spr_corr_rea = df_distance_corr.loc[:, idx_cols_spr_dwd_rea]
+
+        if calc_cross_corr:
+            cross_corr_dwd = df_distance_corr.loc[
+                :, idx_cols_cross_dwd]
+            cross_corr_rea = df_distance_corr.loc[:, idx_cols_cross_dwd_rea]
+            plt.ioff()
+            plt.figure(figsize=(12, 8), dpi=200)
+            plt.scatter(distances, cross_corr_rea,
+                        c='b', label='REA', marker='D',
+                        alpha=0.5)
+            plt.scatter(distances, cross_corr_dwd,
+                        c='r', label='DWD', marker='X',
+                        alpha=0.5)
+            #plt.plot([0, 1], [0, 1], c='k', linestyle='-')
+            plt.grid(alpha=0.5)
+            plt.legend(loc=0)
+            plt.xlabel('Distance [Km]')
+            plt.ylabel('Cross Correlation')
+            plt.title('Cross Correlation\n'
+                      'Between each location and all other locations\n'
+                      '%s-%s' % (_year, temp_agg))
+
+            plt.ylim([-0.01, 1.01])
+
+            plt.savefig(os.path.join(
+                path_to_all_rea2_files,
+                #             r'analysis',
+                r'cross_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
+
+            #==================================================================
+            # scatter cross correlation
+            #==================================================================
+            from sklearn.metrics import r2_score
+
+            dwd_vals_all = []
+            rea2_vals_all = []
+            plt.ioff()
+            plt.figure(figsize=(12, 8), dpi=200)
+
+            for stn in cross_corr_dwd.index:
+                dwd_vals = cross_corr_dwd.loc[stn, :].dropna()
+                rea_vals = cross_corr_rea.loc[stn, :].dropna()
+                if dwd_vals.size > 0:
+
+                    dwd_vals_all.append(dwd_vals)
+                    rea2_vals_all.append(rea_vals)
+                    plt.scatter(dwd_vals.values, rea_vals.values,
+                                alpha=0.5,
+                                c='r', marker='x')
+            coefficient_of_dermination = r2_score(dwd_vals_all,
+                                                  rea2_vals_all)
+            plt.plot([0, 1], [0, 1], c='k', linestyle='-.')
+            plt.scatter(dwd_vals.values, rea_vals.values,
+                        alpha=0.,
+                        label='$R^{2}=%0.2f$' % coefficient_of_dermination)
+            plt.grid(alpha=0.5)
+            plt.legend(loc=0)
+            plt.xlabel('DWD')
+            plt.ylabel('REA2')
+            plt.title('Cross Correlation\n'
+                      'Between each location and all other locations\n'
+                      '%s-%s' % (_year, temp_agg))
+
+            plt.ylim([-0.01, 1.01])
+
+            plt.savefig(os.path.join(
+                path_to_all_rea2_files,
+                #             r'analysis',
+                r'scatter_cross_corr_%d_rea_dwd_%s2.png' % (_year, temp_agg)))
+            plt.close()
+        #======================================================================
+        # pearson corr
+        #======================================================================
         plt.ioff()
         plt.figure(figsize=(12, 8), dpi=200)
         plt.scatter(distances, prs_corr_rea, c='b', label='REA', marker='D',
-                    alpha=0.5)
+                    alpha=0.25)
         plt.scatter(distances, prs_corr_dwd, c='r', label='DWD', marker='X',
-                    alpha=0.5)
+                    alpha=0.25)
 
         plt.grid(alpha=0.5)
         plt.legend(loc=0)
@@ -237,7 +350,7 @@ for _year in list_years:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             '/analysis',
-                r'prs_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
+                r'prs_corr_all_%d_rea_dwd_%s_qq.png' % (_year, temp_agg)))
         plt.close()
 
         if not test_for_extremes:
@@ -259,5 +372,5 @@ for _year in list_years:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             r'analysis',
-                r'spr_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
+                r'spr_corr_all_%d_rea_dwd_%s_qq.png' % (_year, temp_agg)))
             plt.close()

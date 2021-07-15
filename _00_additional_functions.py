@@ -310,3 +310,17 @@ def get_cdf_part_abv_thr(ppt_data, ppt_thr):
     #assert y_abv_thr[0] == p0, 'something is wrong with probability cal'
 
     return x_abv_thr, y_abv_thr
+
+
+def transform_to_bools(df_pcp, perc_thr):
+    dwd_cdf_x, dwd_cdf_y = get_cdf_part_abv_thr(
+        df_pcp.values.ravel(), -0.1)
+    # get dwd ppt thr from cdf
+    dwd_ppt_thr_per = dwd_cdf_x[np.where(
+        dwd_cdf_y >= perc_thr)][0]
+    idx_abv = np.where(df_pcp.values >= dwd_ppt_thr_per)[0]
+    idx_below = np.where(df_pcp.values < dwd_ppt_thr_per)[0]
+    df_pcp.iloc[idx_abv] = 1
+    df_pcp.iloc[idx_below] = 0
+
+    return df_pcp
