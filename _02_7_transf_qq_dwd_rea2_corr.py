@@ -10,24 +10,16 @@ TODO: Add docs
 # from .cfcoords import translate_coords
 # from .datamodels import CDS, ECMWF
 import sys
-import xarray as xr
+
 import numpy as np
-import cf2cdm
-import cfgrib
+
 import os
-import netCDF4
+
 import numpy as numpy
 import pandas as pd
-import rasterio
-import shapefile as shp  # Requires the pyshp package
-import matplotlib
-import matplotlib.pyplot as plt
+
 import glob
-from scipy.spatial import distance
-from scipy.stats import spearmanr as spr
-from scipy.stats import pearsonr as prs
-from scipy.stats import linregress
-from sklearn.metrics import r2_score
+import matplotlib.pyplot as plt
 import tqdm
 from _00_additional_functions import (resampleDf,
                                       find_nearest,
@@ -45,7 +37,7 @@ path_dwd_data = (r"/home/abbas/Documents/REA2"
 
 path_to_all_rea2_files = r'/home/abbas/Documents/REA2/REA_Pcp'
 
-list_years = np.arange(2007, 2008, 1)
+list_years = np.arange(2008, 2014, 1)
 
 # percentile_level = 0.99
 
@@ -64,25 +56,42 @@ all_grib_files = glob.glob('*.csv')
 
 aggs = ['60min', '120min', '180min', '360min', '720min', '1440min']
 
-percentile_levels = [0.995, 0.98, 0.97, 0.95, 0.93, 0.92]
-quantilies_levels = np.linspace(0, 1., 1000, endpoint=True)
+
+def qq_transform_Rea2(stn_id, df_rea, df_dwd_recent, df_dwd_hist):
+    xdwd, ydwd = build_edf_fr_vals(df_dwd_recent.values)
+    xdwd_hist, ydwd_hist = build_edf_fr_vals(
+        df_dwd_hist.values)
+    xrea2, yrea2 = build_edf_fr_vals(df_rea.values)
+
+    df_xrea2_tranf = pd.DataFrame(index=df_rea.index,
+                                  columns=[stn_id])
+
+    for idx, pcp in zip(df_rea.index, df_rea.values):
+        #                 pcp=5
+        if pcp > 0.1:
+            qrea2 = yrea2[
+                np.max(np.where(xrea2 == find_nearest(xrea2, pcp)))]
+            pcp_dwd_q_rea2 = xdwd[
+                np.max(np.where(ydwd == find_nearest(ydwd, qrea2)))]
+
+            q_dwd_q_rea2_hist = ydwd_hist[
+                np.max(np.where(xdwd_hist == find_nearest(
+                    xdwd_hist, pcp_dwd_q_rea2)))]
+
+            pcp_rea2_trans = xrea2[
+                np.max(np.where(
+                    yrea2 == find_nearest(yrea2, q_dwd_q_rea2_hist)))]
+            df_xrea2_tranf.loc[idx, stn_id] = pcp_rea2_trans
+#                     break
+        else:
+            df_xrea2_tranf.loc[idx, stn_id] = pcp
+
+    return df_xrea2_tranf
 
 
-def convert_to_qq_vals(df_vals,
-                       time_idx,
-                       qq_levels):
-    qq_vals = df_vals.loc[time_idx].quantile(
-        qq_levels)
-    return qq_vals
-
-
-def rsquared(x, y):
-    """ Return R^2 where x and y are array-like."""
-
-    slope, intercept, r_value, p_value, std_err = linregress(x, y)
-    return r_value**2
-
-
+# =============================================================================
+# 
+# =============================================================================
 for _year in list_years:
     print(_year)
     start_year = '01-01-%s 00:00:00' % _year
@@ -92,220 +101,81 @@ for _year in list_years:
                              index_col=0,
                              parse_dates=True,
                              infer_datetime_format=True)
+    
+    in_df_rea2[in_df_rea2 < 0] = 0
     # read data and get station ids and coords
-
+    empty_df_rea2 = pd.DataFrame(
+        index=in_df_rea2.index,
+        columns=in_df_rea2.columns,
+        data=np.full(shape=(in_df_rea2.shape), fill_value=np.nan))
+    
     dwd_pcp = dwd_hdf5.get_pandas_dataframe_between_dates(
         dwd_ids,
         event_start=start_year,
         event_end=end_year)
-    for temp_agg, percentile_level in zip(aggs, percentile_levels):
-        print(temp_agg)
-        dwd_pcp_res = resampleDf(dwd_pcp, temp_agg)
-        in_df_rea2_res = resampleDf(in_df_rea2, temp_agg)
+    dwd_pcp_hourly = resampleDf(dwd_pcp, 'H')
+    # for temp_agg in (aggs):
+        # print(temp_agg)
+        # dwd_pcp_res = resampleDf(dwd_pcp, temp_agg)
+        # in_df_rea2_res = resampleDf(in_df_rea2, temp_agg)
 
-        df_distance_corr = pd.DataFrame(index=dwd_ids)
-        for _ii in tqdm.tqdm(range(len(dwd_ids))):
-            #             print(_ii, '/', len(dwd_ids))
-            stn_id = dwd_ids[_ii]
+    for _ii in tqdm.tqdm(range(len(dwd_ids))):
+        #             print(_ii, '/', len(dwd_ids))
+        stn_id = dwd_ids[_ii]
+        # dwd pcp historical
+        print(stn_id)
+        dwd_pcp_hist = dwd_hdf5.get_pandas_dataframe(stn_id)
+        dwd_pcp_hist_hourly = resampleDf(dwd_pcp_hist, 'H').dropna(how='any')
+        #dwd_pcp_hist_hourly
 
-            x_dwd_interpolate = dwd_coords_utm32.loc[stn_id, 'X']
-            y_dwd_interpolate = dwd_coords_utm32.loc[stn_id, 'Y']
+        df_dwd1 = dwd_pcp_hourly.loc[:, stn_id].dropna(how='any')
 
-            # drop stns
+        df_rea1 = in_df_rea2.loc[:, stn_id].dropna(how='any')
 
-            all_dwd_stns_except_interp_loc = [
-                stn for stn in dwd_ids if stn != stn_id and len(stn) > 0]
+        df_rea1[df_rea1 < 0] = 0
+        
+        if df_dwd1.size > 0:
 
-            cmn_stns = dwd_coords_utm32.index.intersection(
-                all_dwd_stns_except_interp_loc)
-            # coords of all other stns for event
-            x_dwd_all = dwd_coords_utm32.loc[cmn_stns, 'X'].dropna().values
-            y_dwd_all = dwd_coords_utm32.loc[cmn_stns, 'Y'].dropna().values
+            try:
+                df_rea1_tranf = qq_transform_Rea2(
+                stn_id,
+                df_rea1,
+                df_dwd1,
+                dwd_pcp_hist_hourly)
+            except Exception:
+                print('error')
+            empty_df_rea2.loc[df_rea1_tranf.index, stn_id] = df_rea1_tranf.values
+    
+    plt.ioff()
+    plt.figure(figsize=(12, 8), dpi=100)
+    plt.scatter( in_df_rea2.values, empty_df_rea2.values,
+                c='k', marker='o', alpha=0.5, s=40)
+    plt.xlabel('REA2 Original [mm/60min]', fontsize=14)
+    plt.ylabel('REA2 QQ-Transformed [mm/60min]', fontsize=14)
+    plt.grid(alpha=0.5)
+    #plt.plot([0, max(np.nanmax(empty_df_rea2.values), np.nanmax(in_df_rea2.values))],
+    #         [0, max(np.nanmax(empty_df_rea2.values), np.nanmax(in_df_rea2.values))],
+    #         c='r', linestyle='-.')
+    
+    plt.savefig(os.path.join(
+        path_to_all_rea2_files, 'qq_pcp_%s.png' % _year))
+    plt.close()
+    
+    plt.ioff()
+    plt.figure(figsize=(12, 8), dpi=100)
+    plt.scatter( in_df_rea2.values, empty_df_rea2.values,
+                c='k', marker='o', alpha=0.5, s=40)
+    plt.xlabel('REA2 Original [mm/60min]', fontsize=14)
+    plt.ylabel('REA2 QQ-Transformed [mm/60min]', fontsize=14)
+    plt.plot([0, max(np.nanmax(empty_df_rea2.values), np.nanmax(in_df_rea2.values))],
+             [0, max(np.nanmax(empty_df_rea2.values), np.nanmax(in_df_rea2.values))],
+             c='r', linestyle='-.')
 
-            # coords of neighbors
-            dwd_neighbors_coords = np.c_[x_dwd_all.ravel(), y_dwd_all.ravel()]
-
-            distrance_to_ngbrs = distance.cdist(
-                [(x_dwd_interpolate, y_dwd_interpolate)],
-                dwd_neighbors_coords, 'euclidean')[0]
-            distance_sorted = np.sort(distrance_to_ngbrs)
-            ids_sorted = cmn_stns[np.argsort(distrance_to_ngbrs)]
-            # calc rank correlation
-
-            df_dwd1 = dwd_pcp_res.loc[:, stn_id].dropna(how='any')
-
-            df_rea1 = in_df_rea2_res.loc[:, stn_id].dropna(how='any')
-
-            df_rea1[df_rea1 < 0] = 0
-
-#             dwd_qq = convert_to_qq_vals(df_dwd1,
-#                        df_dwd1.index,
-#                        quantilies_levels)
-
-            xdwd, ydwd = build_edf_fr_vals(df_dwd1.values)
-            xrea2, yrea2 = build_edf_fr_vals(df_rea1.values)
-
-            df_xrea2_tranf = pd.DataFrame(index=df_rea1.index,
-                                          columns=[stn_id])
-
-            """
-            https://desktop.arcgis.com/en/arcmap/latest/extensions/geostatistical-analyst/normal-qq-plot-and-general-qq-plot.htm
-            """
-            for idx, pcp in zip(df_rea1.index, df_rea1.values):
-                #                 pcp=5
-                if pcp > 0.1:
-                    qrea2 = yrea2[
-                        np.max(np.where(xrea2 == find_nearest(xrea2, pcp)))]
-                    pcp_dwd_q_rea2 = xdwd[
-                        np.max(np.where(ydwd == find_nearest(ydwd, qrea2)))]
-                    q_dwd_q_rea2 = ydwd[
-                        np.max(np.where(xdwd == find_nearest(
-                            xdwd, pcp_dwd_q_rea2)))]
-                    pcp_rea2_trans = xrea2[
-                        np.max(np.where(
-                            yrea2 == find_nearest(yrea2, q_dwd_q_rea2)))]
-                    df_xrea2_tranf.loc[idx, stn_id] = pcp_rea2_trans
-
-                else:
-                    df_xrea2_tranf.loc[idx, stn_id] = pcp
-#                 break
-#
-#             xrea2_tranf, yrea2_transf = build_edf_fr_vals(
-#                 df_xrea2_tranf.values)
-#             plt.ioff()
-#             plt.plot(xdwd, ydwd, label='DWD')
-#             plt.plot(xrea2, yrea2, label='REA2')
-#             plt.plot(xrea2_tranf, yrea2, label='QQ-REA2')
-#             plt.legend()
-#             plt.show()
-
-            if df_dwd1.size > 0:
-                if test_for_extremes:
-                    df_dwd1 = transform_to_bools(df_dwd1, percentile_level)
-                    df_rea1 = transform_to_bools(df_rea1, percentile_level)
-
-                for ix2, _id2 in enumerate(ids_sorted):
-                    #                 print(ix2, '/', len(ids_sorted))
-                    df_dwd2 = dwd_pcp_res.loc[:, _id2].dropna(how='any')
-                    df_rea2 = in_df_rea2_res.loc[:, _id2].dropna(how='any')
-                    df_rea2[df_rea2 < 0] = 0
-
-                    cmn_idx = df_dwd1.index.intersection(
-                        df_dwd2.index.intersection(
-                            df_rea1.index)).intersection(
-                        df_rea2.index)
-
-                    if len(cmn_idx) > 0:
-                        if test_for_extremes:
-                            # make csf and get values above percentile level
-                            #                         try:
-                            df_dwd2 = transform_to_bools(
-                                df_dwd2, percentile_level)
-                            df_rea2 = transform_to_bools(
-                                df_rea2, percentile_level)
-    #                         except Exception as msg:
-    #                             print(msg)
-
-                        cmn_vals1 = df_dwd1.loc[cmn_idx]
-
-                        cmn_vals2 = df_dwd2.loc[cmn_idx]
-
-                        cmn_rea1 = df_rea1.loc[cmn_idx]
-                        cmn_rea2 = df_rea2.loc[cmn_idx]
-
-                        try:
-                            spr_corr = spr(cmn_vals1, cmn_vals2)[0]
-                            prs_corr = prs(cmn_vals1, cmn_vals2)[0]
-                            sep_dist = distance_sorted[ix2]
-
-                            spr_corr_rea = spr(cmn_rea1, cmn_rea2)[0]
-                            prs_corr_rea = prs(cmn_rea1, cmn_rea2)[0]
-
-            #             sep_dist_rea = distance_sorted[ix2]
-                        except Exception as msg:
-                            print(msg)
-
-                        if np.isnan(spr_corr):
-                            print('corr_is_nan')
-                        df_distance_corr.loc[stn_id,
-                                             'sep_dist_%s' % _id2] = sep_dist
-                        df_distance_corr.loc[stn_id,
-                                             'pears_corr_%s' % _id2] = spr_corr
-                        df_distance_corr.loc[stn_id,
-                                             'spr_corr_%s' % _id2] = prs_corr
-
-                        df_distance_corr.loc[
-                            stn_id, 'pears_corr_rea_%s' % _id2] = spr_corr_rea
-                        df_distance_corr.loc[
-                            stn_id, 'spr_corr_rea_%s' % _id2] = prs_corr_rea
-    #             break
-    #         break
-
-        all_cols = df_distance_corr.columns.to_list()
-        idx_cols_distance = [_col for _col in all_cols if 'dist' in _col]
-        idx_cols_prs_dwd = [_col for _col in all_cols
-                            if 'pears_corr' in _col and 'rea' not in _col]
-        idx_cols_spr_dwd = [_col for _col in all_cols
-                            if 'spr_corr' in _col and 'rea' not in _col]
-
-        idx_cols_prs_dwd_rea = [_col for _col in all_cols
-                                if 'pears_corr' in _col and 'rea' in _col]
-        idx_cols_spr_dwd_rea = [_col for _col in all_cols
-                                if 'spr_corr' in _col and 'rea' in _col]
-
-        #======================================================================
-        # all stns
-        #======================================================================
-        distances = df_distance_corr.loc[:, idx_cols_distance] / 1e3
-        prs_corr_dwd = df_distance_corr.loc[:, idx_cols_prs_dwd]
-        spr_corr_dwd = df_distance_corr.loc[:, idx_cols_spr_dwd]
-        prs_corr_rea = df_distance_corr.loc[:, idx_cols_prs_dwd_rea]
-        spr_corr_rea = df_distance_corr.loc[:, idx_cols_spr_dwd_rea]
-        plt.ioff()
-        plt.figure(figsize=(12, 8), dpi=200)
-        plt.scatter(distances, prs_corr_rea, c='b', label='REA', marker='D',
-                    alpha=0.5)
-        plt.scatter(distances, prs_corr_dwd, c='r', label='DWD', marker='X',
-                    alpha=0.5)
-
-        plt.grid(alpha=0.5)
-        plt.legend(loc=0)
-        plt.xlabel('Distance [Km]')
-        plt.ylabel('Pearson Correlation [mm/%s]' % temp_agg)
-        if test_for_extremes:
-            plt.ylabel('Indicator Correlation [mm/%s]' % temp_agg)
-        plt.ylim([-0.01, 1.01])
-
-        if test_for_extremes:
-            plt.savefig(os.path.join(
-                path_to_all_rea2_files,
-                #             r'analysis',
-                r'indic_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
-        else:
-            plt.savefig(os.path.join(
-                path_to_all_rea2_files,
-                #             '/analysis',
-                r'prs_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
-        plt.close()
-
-        if not test_for_extremes:
-            plt.ioff()
-            plt.figure(figsize=(12, 8), dpi=200)
-            plt.scatter(distances, spr_corr_rea,
-                        c='b', label='REA', marker='D',
-                        alpha=0.5)
-            plt.scatter(distances, spr_corr_dwd,
-                        c='r', label='DWD', marker='X',
-                        alpha=0.5)
-
-            plt.grid()
-            plt.legend(loc=0)
-            plt.xlabel('Distance [km]')
-            plt.ylabel('Spearman Correlation [mm/%s]' % temp_agg)
-            plt.ylim([-0.01, 1.01])
-
-            plt.savefig(os.path.join(
-                path_to_all_rea2_files,
-                #             r'analysis',
-                r'spr_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
-            plt.close()
+    plt.savefig(os.path.join(
+        path_to_all_rea2_files, 'qq_pcp_%s2.png' % _year))
+    plt.close()
+    
+    empty_df_rea2.to_csv(os.path.join(
+        path_to_all_rea2_files, 'qq_pcp_%s.csv' % _year),
+                         sep=';')
+    # break

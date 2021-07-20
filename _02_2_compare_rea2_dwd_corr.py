@@ -40,11 +40,11 @@ path_dwd_data = (r"/home/abbas/Documents/REA2"
 
 path_to_all_rea2_files = r'/home/abbas/Documents/REA2/REA_Pcp'
 
-list_years = np.arange(2007, 2008, 1)
+list_years = np.arange(2009, 2010, 1)
 
 # percentile_level = 0.99
 
-test_for_extremes = True
+test_for_extremes = False
 
 dwd_hdf5 = HDF5(infile=path_dwd_data)
 dwd_ids = dwd_hdf5.get_all_names()
@@ -58,7 +58,7 @@ os.chdir(path_to_all_rea2_files)
 all_grib_files = glob.glob('*.csv')
 
 aggs = ['60min', '120min', '180min', '360min', '720min', '1440min']
-
+aggs = ['60min']
 percentile_levels = [0.99, 0.97, 0.95, 0.93, 0.92, 0.9]
 
 
@@ -80,11 +80,19 @@ for _year in list_years:
     print(_year)
     start_year = '01-01-%s 00:00:00' % _year
     end_year = '31-12-%s 23:00:00' % _year
-    pcp_Rea = [df for df in all_grib_files if str(_year) in df]
+    pcp_Rea = [df for df in all_grib_files if str(_year) in df and 'qq' not in df]
+    qq_pcp_Rea = [df for df in all_grib_files if str(_year) in df and 'qq' in df]
     in_df_rea2 = pd.read_csv(pcp_Rea[0], sep=';',
                              index_col=0,
                              parse_dates=True,
                              infer_datetime_format=True)
+    in_df_rea2_qq = pd.read_csv(qq_pcp_Rea[0], sep=';',
+                             index_col=0,
+                             parse_dates=True,
+                             infer_datetime_format=True)
+    
+ #   in_df_rea2.iloc[:,-1]
+#    in_df_rea2_qq.iloc[:,-1]
     # read data and get station ids and coords
 
     dwd_pcp = dwd_hdf5.get_pandas_dataframe_between_dates(
@@ -230,12 +238,12 @@ for _year in list_years:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             r'analysis',
-                r'indic_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
+                r'indic_corr_all_%d_rea_dwd_%s_qq.png' % (_year, temp_agg)))
         else:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             '/analysis',
-                r'prs_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
+                r'prs_corr_all_%d_rea_dwd_%s_qq.png' % (_year, temp_agg)))
         plt.close()
 
         if not test_for_extremes:
@@ -257,5 +265,5 @@ for _year in list_years:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             r'analysis',
-                r'spr_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
+                r'spr_corr_all_%d_rea_dwd_%s_qq.png' % (_year, temp_agg)))
             plt.close()
