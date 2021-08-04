@@ -34,9 +34,13 @@ path_dwd = r"/home/abbas/Documents/REA2/DWD_1min_metadata_wgs84.csv"
 path_dwd_data = r"/home/abbas/Documents/REA2/dwd_comb_5min_data_agg_5min_2020_flagged_Hannover.h5"
 
 
-path_to_all_rea2_files = r'/run/media/abbas/EL Hachem 2019/REA6/Grib_files'
+path_to_all_rea6_files = r'/run/media/abbas/EL Hachem 2019/REA6/TOT_PRECIP'
 
-list_years = np.arange(2019, 2020, 1)
+os.chdir(path_to_all_rea6_files)
+all_grib_files = glob.glob('*.grb')
+    
+    
+list_years = np.arange(1995, 2020, 1)
 
 
 dwd_hdf5 = HDF5(infile=path_dwd_data)
@@ -72,11 +76,11 @@ for _year in list_years:
     df_pcp_model = pd.DataFrame(index=date_range_pcp,
                                 columns=dwd_ids)
 
-    path_to_grib = os.path.join(path_to_all_rea2_files, str(_year))
-    os.chdir(path_to_grib)
-    all_grib_files = glob.glob('*.grb')
-    for grib_file in all_grib_files:
+    
+    all_grib_files_year = [_ff for _ff in all_grib_files if str(_year) in _ff]
+    for grib_file in all_grib_files_year:
         print(grib_file)
+        # break
         month_nbr = int(grib_file.split('.')[-2][-2:])
 
         # read grib file
@@ -91,12 +95,17 @@ for _year in list_years:
         # coords from REA2 data
         coords_x = ds.coords['longitude'].values.ravel()
         coords_y = ds.coords['latitude'].values.ravel()
+        
         coords_xy = np.array([(x, y) for x, y in zip(coords_x, coords_y)])
         # coordinates and index of stations
         lons = dwd_coords_utm32.lon
         lats = dwd_coords_utm32.lat
         coords_dwd = np.array([(x, y) for x, y in zip(lons, lats)])
         #
+        # plt.ioff()
+        # plt.scatter(coords_x, coords_y)
+        # plt.scatter(lons, lats)
+        # plt.show()
         xen_model = [find_nearest(coords_x, ll) for ll in lons]
         yen_model = [find_nearest(coords_y, ll) for ll in lats]
 
@@ -105,107 +114,20 @@ for _year in list_years:
 
         ix_dwd = [closest_node(coords_dwd_model[i], coords_xy)
                   for i in range(len(coords_dwd_model))]
+        
+        
+        time_datetime = pd.DatetimeIndex(time.values)
 
-        """to calculate the precipitation that occured in 1 hour,
-        you have to do the following calculation
-        (example for the first cycling window):
-        TOT_PREC_01UTC=TOT_PREC_01UTC
-        TOT_PREC_02UTC=TOT_PREC_02UTC-TOT_PREC_01UTC
-        TOT_PREC_03UTC=TOT_PREC_03UTC-TOT_PREC_02UTC
-        TOT_PREC_04UTC=TOT_PREC_04UTC-TOT_PREC_03UTC
-        TOT_PREC_05UTC=TOT_PREC_05UTC-TOT_PREC_04UTC
-        TOT_PREC_06UTC=TOT_PREC_06UTC-TOT_PREC_05UTC
-        """
-
-        # create df
-        date = pd.to_datetime(time.values)
-
-        tp_2 = tp
-        zeitpunkt_h2 = tp[2, :, :].values
-        for counter, h in enumerate(date.hour):
-            #             print('counter: ' + str(counter) +
-            #                   '/' + str(len(date.hour))
-            #                   + ', hour: ' + str(h))
-            if h in [2, 8, 14, 20]:
-                # Wenn Stunde 2 Uhr, dann muss 2-1 gerechnet werden
-                tp_2[counter, 1, :, :].values = (tp[counter, 1, :, :].values -
-                                                 tp[counter - 1, 0, :, :].values)
-                print(str(counter) + ' geandert')
-            if h in [3, 9, 15, 21]:  # 3 Uhr --> 3-2
-                tp_2[counter, 2, :, :].values = (tp[counter, 2, :, :].values -
-                                                 tp[counter - 1, 1, :, :].values)
-                print(str(counter) + ' geandert')
-            if h in [4, 10, 16, 22]:  # 3 Uhr --> 3-2
-                tp_2[counter, 3, :, :].values = (tp[counter, 3, :, :].values -
-                                                 tp[counter - 1, 2, :, :].values)
-                print(str(counter) + ' geandert')
-            if h in [5, 11, 17, 23]:  # 3 Uhr --> 3-2
-                tp_2[counter, 4, :, :].values = (tp[counter, 4, :, :].values -
-                                                 tp[counter - 1, 3, :, :].values)
-                print(str(counter) + ' geandert')
-            if h in [6, 12, 18, 0]:  # 3 Uhr --> 3-2
-                tp_2[counter, 5, :, :].values = (tp[counter, 5, :, :].values -
-                                                 tp[counter - 1, 4, :, :].values)
-                print(str(counter) + ' geandert')
-
-        #======================================================================
-        # # Create a new netcdf file with corresponding data
-        #======================================================================
-        zeitpunkt_h2_after = tp_2[2, 1, :, :]
-        # create Data array
-        # data = numpy.full((743, 780, 724), None)
-        data = numpy.ndarray([date.size, 780, 724])
-        data[:] = None
-        tmp = xr.DataArray(
-            data,
-            dims={'time': date.size, 'y': 780, 'x': 724},
-            coords=[ds.__getitem__('time').values,
-                    ds.__getitem__('y').values,
-                    ds.__getitem__('x').values])
-
-        #======================================================================
-        # erase step dimension
-        #======================================================================
-        for counter, h in enumerate(date.hour):
-            #             print('counter: ' + str(counter) + ', hour: ' + str(h))
-            try:
-                if h in [1, 7, 13, 19]:
-                    tmp[counter, :, :] = tp[counter, 0, :, :].values
-                    print(str(counter) + ' kopiert')
-                if h in [
-                        2, 8, 14, 20]:
-                    # Wenn Stunde 2 Uhr, dann muss 2-1 gerechnet werden
-                    tmp[counter, :, :] = (tp[counter, 1, :, :] -
-                                          tp[counter - 1, 0, :, :])
-                    print(str(counter) + ' geandert')
-                if h in [3, 9, 15, 21]:  # 3 Uhr --> 3-2
-                    tmp[counter, :, :] = (tp[counter, 2, :, :] -
-                                          tp[counter - 1, 1, :, :])
-                    print(str(counter) + ' geandert')
-                if h in [4, 10, 16, 22]:  # 3 Uhr --> 3-2
-                    tmp[counter, :, :] = (tp[counter, 3, :, :] -
-                                          tp[counter - 1, 2, :, :])
-                    print(str(counter) + ' geandert')
-                if h in [5, 11, 17, 23]:  # 3 Uhr --> 3-2
-                    tmp[counter, :, :] = (tp[counter, 4, :, :] -
-                                          tp[counter - 1, 3, :, :])
-                    print(str(counter) + ' geandert')
-                if h in [6, 12, 18, 0]:  # 3 Uhr --> 3-2
-                    tmp[counter, :, :] = (tp[counter, 5, :, :] -
-                                          tp[counter - 1, 4, :, :])
-                    print(str(counter) + ' geandert')
-            except Exception as msg:
-                print(msg)
-                tmp[counter, :, :] = np.nan
-                continue
         # fill dataframe with values at station location
 #         tmp.shape
-        for ii, ix in enumerate(date):
-            vals_ii = tmp[ii, :].data.ravel()
+        for ii, ix in enumerate(time_datetime):
+            print(ii, len(time_datetime))
+            vals_ii = tp[ii, :,:].data.ravel()
             df_pcp_model.loc[ix, lons.index] = vals_ii[ix_dwd]
+            # break
 
     df_pcp_model.to_csv(
-        os.path.join(r'/run/media/abbas/EL Hachem 2019/REA_Pcp/pcp_%s.csv'
+        os.path.join(r'/run/media/abbas/EL Hachem 2019/REA6/Extracted_Hannover/pcp_%s.csv'
                      % _year),
         sep=';')
 

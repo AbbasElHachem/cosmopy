@@ -37,7 +37,7 @@ path_dwd_data = (r"/home/abbas/Documents/REA2"
 
 path_to_all_rea2_files = r'/home/abbas/Documents/REA2/REA_Pcp'
 
-list_years = np.arange(2008, 2014, 1)
+list_years = np.arange(2013, 2014, 1)
 
 # percentile_level = 0.99
 

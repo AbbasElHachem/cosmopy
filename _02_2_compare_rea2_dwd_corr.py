@@ -40,11 +40,11 @@ path_dwd_data = (r"/home/abbas/Documents/REA2"
 
 path_to_all_rea2_files = r'/home/abbas/Documents/REA2/REA_Pcp'
 
-list_years = np.arange(2009, 2010, 1)
+list_years = np.arange(2007, 2013, 1)
 
 # percentile_level = 0.99
 
-test_for_extremes = False
+test_for_extremes = True
 
 dwd_hdf5 = HDF5(infile=path_dwd_data)
 dwd_ids = dwd_hdf5.get_all_names()
@@ -58,8 +58,8 @@ os.chdir(path_to_all_rea2_files)
 all_grib_files = glob.glob('*.csv')
 
 aggs = ['60min', '120min', '180min', '360min', '720min', '1440min']
-aggs = ['60min']
-percentile_levels = [0.99, 0.97, 0.95, 0.93, 0.92, 0.9]
+# aggs = ['60min']
+percentile_levels = [0.99, 0.98, 0.97, 0.96, 0.93, 0.92]
 
 
 def transform_to_bools(df_pcp, perc_thr):
@@ -82,15 +82,15 @@ for _year in list_years:
     end_year = '31-12-%s 23:00:00' % _year
     pcp_Rea = [df for df in all_grib_files if str(_year) in df and 'qq' not in df]
     qq_pcp_Rea = [df for df in all_grib_files if str(_year) in df and 'qq' in df]
-    in_df_rea2 = pd.read_csv(pcp_Rea[0], sep=';',
-                             index_col=0,
-                             parse_dates=True,
-                             infer_datetime_format=True)
+    # in_df_rea2 = pd.read_csv(pcp_Rea[0], sep=';',
+    #                          index_col=0,
+    #                          parse_dates=True,
+    #                          infer_datetime_format=True)
     in_df_rea2_qq = pd.read_csv(qq_pcp_Rea[0], sep=';',
                              index_col=0,
                              parse_dates=True,
                              infer_datetime_format=True)
-    
+    in_df_rea2 = in_df_rea2_qq
  #   in_df_rea2.iloc[:,-1]
 #    in_df_rea2_qq.iloc[:,-1]
     # read data and get station ids and coords

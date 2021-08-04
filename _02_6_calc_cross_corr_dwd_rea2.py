@@ -45,7 +45,7 @@ path_dwd_data = (r"/home/abbas/Documents/REA2"
 
 path_to_all_rea2_files = r'/home/abbas/Documents/REA2/REA_Pcp'
 
-list_years = np.arange(2007, 2008, 1)
+list_years = np.arange(2007, 2013, 1)
 
 # percentile_level = 0.99
 
@@ -103,8 +103,12 @@ for _year in list_years:
     print(_year)
     start_year = '01-01-%s 00:00:00' % _year
     end_year = '31-12-%s 23:00:00' % _year
-    pcp_Rea = [df for df in all_grib_files if str(_year) in df]
-    in_df_rea2 = pd.read_csv(pcp_Rea[0], sep=';',
+    # pcp_Rea = [df for df in all_grib_files if str(_year) in df]
+    
+    pcp_Rea = [df for df in all_grib_files if str(_year) in df and 'qq' not in df]
+    qq_pcp_Rea = [df for df in all_grib_files if str(_year) in df and 'qq' in df]
+    
+    in_df_rea2 = pd.read_csv(qq_pcp_Rea[0], sep=';',
                              index_col=0,
                              parse_dates=True,
                              infer_datetime_format=True)
@@ -280,7 +284,7 @@ for _year in list_years:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             r'analysis',
-                r'cross_corr_all_%d_rea_dwd_%s.png' % (_year, temp_agg)))
+                r'cross_corr_all_%d_rea_dwd_%s_qq.png' % (_year, temp_agg)))
 
             #==================================================================
             # scatter cross correlation
@@ -321,7 +325,7 @@ for _year in list_years:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             r'analysis',
-                r'scatter_cross_corr_%d_rea_dwd_%s2.png' % (_year, temp_agg)))
+                r'scatter_cross_corr_%d_rea_dwd_%s2_qq.png' % (_year, temp_agg)))
             plt.close()
         #======================================================================
         # pearson corr

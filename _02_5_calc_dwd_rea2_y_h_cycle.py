@@ -67,8 +67,10 @@ for _year in list_years:
     print(_year)
     start_year = '01-01-%s 00:00:00' % _year
     end_year = '31-12-%s 23:00:00' % _year
-    pcp_Rea = [df for df in all_grib_files if str(_year) in df]
-    in_df_rea2 = pd.read_csv(pcp_Rea[0], sep=';',
+    pcp_Rea = [df for df in all_grib_files if str(_year) in df and 'qq' not in df]
+    qq_pcp_Rea = [df for df in all_grib_files if str(_year) in df and 'qq' in df]
+    
+    in_df_rea2 = pd.read_csv(qq_pcp_Rea[0], sep=';',
                              index_col=0,
                              parse_dates=True,
                              infer_datetime_format=True)
@@ -132,7 +134,7 @@ for _year in list_years:
     plt.xticks([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
     plt.savefig(os.path.join(
         out_save_dir,
-        r'yearly_cycle_%d_rea_dwd.png'
+        r'yearly_cycle_%d_rea_dwd_qq.png'
         % (_year)))
 
     plt.close()
@@ -176,7 +178,7 @@ for _year in list_years:
     plt.xticks(dwd_hourly_vals_max.index.to_list())
     plt.savefig(os.path.join(
         out_save_dir,
-        r'hourly_cycle_%d_rea_dwd.png'
+        r'hourly_cycle_%d_rea_dwd_qq.png'
         % (_year)))
 
     plt.close()
