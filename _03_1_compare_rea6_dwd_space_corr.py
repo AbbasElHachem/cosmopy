@@ -35,16 +35,16 @@ from _00_additional_functions import resampleDf, get_cdf_part_abv_thr
 from read_hdf5 import HDF5
 
 path_dwd_data = (r"/home/abbas/Documents/REA2"
-                 r"/dwd_comb_1min_data_agg_60min_2020_gk3.h5")
+                 r"/dwd_comb_5min_data_agg_5min_2020_flagged_Hannover.h5")
 
 
-path_to_all_rea2_files = r'/run/media/abbas/EL Hachem 2019/REA_Pcp/pcp_all_Dwd_stns'
+path_to_all_rea2_files = r'/run/media/abbas/EL Hachem 2019/REA6/Extracted_Hannover'
 
-list_years = np.arange(2007, 2008, 1)
+list_years = np.arange(1995, 2020, 1)
 
 percentile_level = 0.99
 
-test_for_extremes = True
+test_for_extremes = False
 
 dwd_hdf5 = HDF5(infile=path_dwd_data)
 dwd_ids = dwd_hdf5.get_all_names()
@@ -248,11 +248,11 @@ for _year in list_years:
 
     if test_for_extremes:
         plt.savefig(os.path.join(
-            r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
+            r'/run/media/abbas/EL Hachem 2019/REA6/Analysis',
             r'indic_corr_all_%d_DE.png' % (_year)))
     else:
         plt.savefig(os.path.join(
-            r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
+            r'/run/media/abbas/EL Hachem 2019/REA6/Analysis',
             r'prs_corr_all_%d_DE.png' % (_year)))
     plt.close()
 
@@ -271,7 +271,7 @@ for _year in list_years:
         plt.ylim([-0.01, 1.01])
 
         plt.savefig(os.path.join(
-            r'/run/media/abbas/EL Hachem 2019/REA_Pcp/analysis',
+            r'/run/media/abbas/EL Hachem 2019/REA6/Analysis',
             r'spr_corr_all_%d_DE.png' % (_year)))
         plt.close()
 

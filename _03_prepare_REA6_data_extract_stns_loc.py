@@ -101,21 +101,38 @@ for _year in list_years:
         lons = dwd_coords_utm32.lon
         lats = dwd_coords_utm32.lat
         coords_dwd = np.array([(x, y) for x, y in zip(lons, lats)])
-        #
+        
+        xen_model = [find_nearest(coords_x, ll) for ll in lons.values.ravel()]
+        yen_model = [find_nearest(coords_y, ll) for ll in lats.values.ravel()]
+                
+        # idx = (np.abs(coords_x - lons[0])).argmin()
+        # coords_x[idx] in coords_x
+        # lons[0]
+        # find_nearest(coords_x, lons[0])
+        # xen_model = [find_nearest(lons, ll) for ll in coords_x]
+        # yen_model = [find_nearest(lats, ll) for ll in coords_y]
+        
+        
+        # plt.scatter(lons, xen_model)
+        # plt.plot([lons.min(), lons.max()], [min(xen_model), max(xen_model)])
         # plt.ioff()
-        # plt.scatter(coords_x, coords_y)
-        # plt.scatter(lons, lats)
+        # plt.scatter(coords_x, coords_y, marker=',', alpha=0.5)
+        # plt.scatter(lons, lats, marker='.')
+        # plt.scatter(xen_model, yen_model, marker='o', c='r')
+        # plt.scatter(xen_model2, yen_model2, marker='d', c='g')
         # plt.show()
-        xen_model = [find_nearest(coords_x, ll) for ll in lons]
-        yen_model = [find_nearest(coords_y, ll) for ll in lats]
-
+        # plt.close()
         coords_dwd_model = np.array([(x, y) for x, y in
                                      zip(xen_model, yen_model)])
 
         ix_dwd = [closest_node(coords_dwd_model[i], coords_xy)
                   for i in range(len(coords_dwd_model))]
         
-        
+        # dw = coords_xy[ix_dwd]
+        # coords_dwd[0]
+        # plt.scatter(dw[:,0], dw[:,1])
+        # plt.scatter(lons, lats)
+        # plt.show()
         time_datetime = pd.DatetimeIndex(time.values)
 
         # fill dataframe with values at station location
