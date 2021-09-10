@@ -61,7 +61,7 @@ list_years = np.arange(1995, 2020, 1)
 
 # percentile_level = 0.99
 
-test_for_extremes = True
+test_for_extremes = False
 calc_qq_corr = False
 calc_cross_corr = False
 
@@ -70,8 +70,6 @@ aggs = ['60min', '120min', '180min', '360min', '720min', '1440min']
 
 percentile_levels = [0.99, 0.98, 0.97, 0.95, 0.93, 0.92]
 
-aggs=['360min']
-percentile_levels = [0.95]
 # =============================================================================
 # read data 
 # =============================================================================
@@ -80,7 +78,6 @@ in_df_rea6 = pd.read_csv(path_to_rea6_files, sep=';',
                              index_col=0, engine='c')
 
 in_df_rea6.index = pd.to_datetime(in_df_rea6.index, format='%Y-%m-%d %H:%M:%S')
-in_df_rea6 = in_df_rea6.round(2)
 #in_df_rea6 = in_df_rea6 * 3600
 #in_df_rea6.dropna(how='all')
 
@@ -177,8 +174,7 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
         # calc rank correlation
 
         df_dwd1 = resampleDf(dwd_pcp.loc[cmn_idx,:], temp_agg)
-        df_rea1 = resampleDf(in_df_rea6_stn.loc[cmn_idx], temp_agg,
-                             closed='right', label='right')
+        df_rea1 = resampleDf(in_df_rea6_stn.loc[cmn_idx], temp_agg)
 
         if df_dwd1.size > 0:
             if test_for_extremes:
@@ -216,18 +212,18 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
                     cmn_rea2 = df_rea2.loc[cmn_idx].values.ravel()
 
                     try:
-                        spr_corr = spr(cmn_vals1, cmn_vals2)[0]
-                        prs_corr = prs(cmn_vals1, cmn_vals2)[0]
+                        spr_corr = spr(cmn_vals1, cmn_rea2)[0]
+                        prs_corr = prs(cmn_vals1, cmn_rea2)[0]
                         sep_dist = distance_sorted[ix2]
 
-                        spr_corr_rea = spr(cmn_rea1, cmn_rea2)[0]
-                        prs_corr_rea = prs(cmn_rea1, cmn_rea2)[0]
+                        spr_corr_rea = spr(cmn_rea1, cmn_vals2)[0]
+                        prs_corr_rea = prs(cmn_rea1, cmn_vals2)[0]
 
                         if calc_cross_corr:
                             cross_corr_dwd = fun_calc_cross_corr(
-                                cmn_vals1, cmn_vals2)
+                                cmn_vals1, cmn_rea2)
                             cross_corr_rea = fun_calc_cross_corr(
-                                cmn_rea1, cmn_rea2)
+                                cmn_rea1, cmn_vals2)
         #             sep_dist_rea = distance_sorted[ix2]
                     except Exception as msg:
                         print(msg)
@@ -237,14 +233,14 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
                     df_distance_corr.loc[stn_id,
                                          'sep_dist_%s' % _id2] = sep_dist
                     df_distance_corr.loc[stn_id,
-                                         'pears_corr_%s' % _id2] = spr_corr
+                                         'pears_corr_%s' % _id2] = prs_corr
                     df_distance_corr.loc[stn_id,
-                                         'spr_corr_%s' % _id2] = prs_corr
+                                         'spr_corr_%s' % _id2] = spr_corr
 
                     df_distance_corr.loc[
-                        stn_id, 'pears_corr_rea_%s' % _id2] = spr_corr_rea
+                        stn_id, 'pears_corr_rea_%s' % _id2] = prs_corr_rea
                     df_distance_corr.loc[
-                        stn_id, 'spr_corr_rea_%s' % _id2] = prs_corr_rea
+                        stn_id, 'spr_corr_rea_%s' % _id2] = spr_corr_rea
 
                     if calc_cross_corr:
                         df_distance_corr.loc[
@@ -253,9 +249,9 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
 
                         df_distance_corr.loc[
                             stn_id, 'cross_corr_rea_%s' % _id2] = cross_corr_rea
-#             break
-#         break
-
+            # break
+        # break
+    # break
     all_cols = df_distance_corr.columns.to_list()
     idx_cols_distance = [_col for _col in all_cols if 'dist' in _col]
     idx_cols_prs_dwd = [_col for _col in all_cols
@@ -312,7 +308,7 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
             plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'indic_cross_corr_rea_dwd_%s_l_r_hr.png' % (temp_agg)))
+            r'indic_cross_corr_rea_dwd_%s_hr.png' % (temp_agg)))
         plt.close()
         #==================================================================
         # scatter cross correlation
@@ -355,12 +351,12 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
             plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'scatter_cross_corr_rea_dwd_%s_hr.png' % (temp_agg)))
+            r'scatter_cross_corr_rea_dwd_%s_all.png' % (temp_agg)))
         if test_for_extremes:
             plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'scatter_indic_cross_corr_rea_dwd_%s_hr.png' % (temp_agg)))
+            r'scatter_indic_cross_corr_rea_dwd_%s_all.png' % (temp_agg)))
         
 
     #======================================================================
@@ -368,9 +364,11 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
     #======================================================================
     plt.ioff()
     plt.figure(figsize=(12, 8), dpi=200)
-    plt.scatter(distances, prs_corr_rea, c='b', label='REA', marker='D',
+    plt.scatter(distances, prs_corr_rea, c='b', label='REA - all DWD',
+                marker='D',
                 alpha=0.25)
-    plt.scatter(distances, prs_corr_dwd, c='r', label='DWD', marker='X',
+    plt.scatter(distances, prs_corr_dwd, c='r', label='DWD - all REA',
+                marker='X',
                 alpha=0.25)
 
     plt.grid(alpha=0.5)
@@ -385,33 +383,33 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
         plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'indic_corr_all_%d_rea_dwd_%s_hr.png' % (percentile_level, 
+            r'indic_corr_all_%d_rea_dwd_%s_all.png' % (percentile_level, 
                                                       temp_agg)))
     else:
         plt.savefig(os.path.join(
             out_save_dir,
             #             '/analysis',
-            r'prs_corr_all_rea_dwd_%s_hr.png' % (temp_agg)))
+            r'prs_corr_all_rea_dwd_%s_all.png' % (temp_agg)))
     plt.close()
 
-    # # if not test_for_extremes:
-    # plt.ioff()
-    # plt.figure(figsize=(12, 8), dpi=200)
-    # plt.scatter(distances, spr_corr_rea,
-    #             c='b', label='REA', marker='D',
-    #             alpha=0.5)
-    # plt.scatter(distances, spr_corr_dwd,
-    #             c='r', label='DWD', marker='X',
-    #             alpha=0.5)
+    # if not test_for_extremes:
+    plt.ioff()
+    plt.figure(figsize=(12, 8), dpi=200)
+    plt.scatter(distances, spr_corr_rea,
+                c='b', label='REA - all DWD', marker='D',
+                alpha=0.5)
+    plt.scatter(distances, spr_corr_dwd,
+                c='r', label='DWD - all REA', marker='X',
+                alpha=0.5)
 
-    # plt.grid()
-    # plt.legend(loc=0)
-    # plt.xlabel('Distance [km]')
-    # plt.ylabel('Spearman Correlation [mm/%s]' % temp_agg)
-    # plt.ylim([-0.01, 1.01])
+    plt.grid()
+    plt.legend(loc=0)
+    plt.xlabel('Distance [km]')
+    plt.ylabel('Spearman Correlation [mm/%s]' % temp_agg)
+    plt.ylim([-0.01, 1.01])
 
-    # plt.savefig(os.path.join(
-    #     out_save_dir,
-    #     #             r'analysis',
-    #     r'spr_corr_all_rea_dwd_%s.png' % (temp_agg)))
-    # plt.close()
+    plt.savefig(os.path.join(
+        out_save_dir,
+        #             r'analysis',
+        r'spr_corr_all_rea_dwd_%s_all.png' % (temp_agg)))
+    plt.close()

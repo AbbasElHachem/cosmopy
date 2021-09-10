@@ -49,11 +49,15 @@ path_dwd_data_de = (r"/home/abbas/Documents/REA2"
                  r"/dwd_comb_1min_data_agg_60min_2020_gk3.h5")
 
 path_to_rea6_files = (r'/run/media/abbas/EL Hachem 2019/REA6'
-                      r'/Extracted_Hannover/comb_years/rea6_1995_2019.csv')
+                      r'/Extracted_Hannover_Daily'
+                      r'/comb_years/rea6_1995_2019.csv')
 
+path_to_rea6_hourly= (r'/run/media/abbas/EL Hachem 2019/REA6'
+                      r'/Extracted_Hannover'
+                      r'/comb_years/rea6_1995_2019.csv')
 
 out_save_dir = (
-    r'/run/media/abbas/EL Hachem 2019/REA6/Analysis/cross_corr')
+    r'/run/media/abbas/EL Hachem 2019/REA6/Analysis/rea6_daily')
 if not os.path.exists(out_save_dir):
     os.mkdir(out_save_dir)
     
@@ -63,15 +67,13 @@ list_years = np.arange(1995, 2020, 1)
 
 test_for_extremes = True
 calc_qq_corr = False
-calc_cross_corr = False
+calc_cross_corr = True
 
 
-aggs = ['60min', '120min', '180min', '360min', '720min', '1440min']
+aggs = ['1440min']
+percentile_levels = [0.92]
 
-percentile_levels = [0.99, 0.98, 0.97, 0.95, 0.93, 0.92]
-
-aggs=['360min']
-percentile_levels = [0.95]
+time_range = pd.date_range(start='1995-01-01', end='2019-12-31', freq='D')
 # =============================================================================
 # read data 
 # =============================================================================
@@ -79,11 +81,40 @@ print('Raeding rea6 data')
 in_df_rea6 = pd.read_csv(path_to_rea6_files, sep=';',
                              index_col=0, engine='c')
 
-in_df_rea6.index = pd.to_datetime(in_df_rea6.index, format='%Y-%m-%d %H:%M:%S')
+in_df_rea6.index = time_range
 in_df_rea6 = in_df_rea6.round(2)
+#pd.to_datetime(in_df_rea6.index, format='%Y-%m-%d %H:%M:%S')
 #in_df_rea6 = in_df_rea6 * 3600
 #in_df_rea6.dropna(how='all')
 
+print('Raeding rea6 data hourly ')
+in_df_rea6_hourly = pd.read_csv(path_to_rea6_hourly, sep=';',
+                             index_col=0, engine='c')
+in_df_rea6_hourly.index = pd.to_datetime(in_df_rea6_hourly.index, format='%Y-%m-%d %H:%M:%S')
+
+in_df_rea6_hourly_daily = resampleDf(in_df_rea6_hourly, 'D',
+                                     closed='right', label='left')
+
+in_df_rea6_hourly_daily = in_df_rea6_hourly_daily.round(2)
+cmn_idx_hourly_daily = in_df_rea6_hourly_daily.index.intersection(in_df_rea6.index) 
+
+in_df_rea6_hourly_daily.loc[cmn_idx_hourly_daily,:].hist()
+
+df_diff = (in_df_rea6_hourly_daily.loc[cmn_idx_hourly_daily,:]-
+            in_df_rea6.loc[cmn_idx_hourly_daily, :])
+df_diff.max().plot()
+plt.ioff()
+plt.figure()
+plt.plot([0, 50],[0,50], c='grey')
+plt.scatter(in_df_rea6_hourly_daily.loc[cmn_idx_hourly_daily,:].values,
+         in_df_rea6.loc[cmn_idx_hourly_daily, :].values)
+plt.show()
+
+
+in_df_rea6 = in_df_rea6_hourly_daily
+# =============================================================================
+# 
+# =============================================================================
 dwd_hdf5_hannover = HDF5(infile=path_dwd_data_hannover)
 dwd_ids_hannover = dwd_hdf5_hannover.get_all_names()
 
@@ -147,6 +178,7 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
         #             print(_ii, '/', len(dwd_ids))
         
         dwd_pcp = dwd_hdf5_de.get_pandas_dataframe(stn_id).dropna()
+        dwd_pcp = resampleDf(dwd_pcp, temp_agg)
         in_df_rea6_stn = in_df_rea6.loc[:, stn_id].dropna()
         
         cmn_idx = dwd_pcp.index.intersection(in_df_rea6_stn.index)
@@ -175,16 +207,23 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
         distance_sorted = np.sort(distrance_to_ngbrs)
         ids_sorted = cmn_stns[np.argsort(distrance_to_ngbrs)]
         # calc rank correlation
-
-        df_dwd1 = resampleDf(dwd_pcp.loc[cmn_idx,:], temp_agg)
+        
+        if temp_agg == '1440min':
+             closed='right'
+             label='left'
+        else:
+            closed='right'
+            label='right'
+        df_dwd1 = resampleDf(dwd_pcp.loc[cmn_idx,:], temp_agg,
+                              closed=closed, label='right')
         df_rea1 = resampleDf(in_df_rea6_stn.loc[cmn_idx], temp_agg,
-                             closed='right', label='right')
+                             closed='left', label='left')
 
         if df_dwd1.size > 0:
             if test_for_extremes:
                 df_dwd1 = transform_to_bools(df_dwd1, percentile_level)
                 df_rea1 = transform_to_bools(df_rea1, percentile_level)
-                df_dwd1.max()
+                # df_dwd1.max()
             for ix2, _id2 in enumerate(ids_sorted):
                 #                 print(ix2, '/', len(ids_sorted))
                 df_dwd2 = dwd_hdf5_de.get_pandas_dataframe(_id2).dropna(how='any')
@@ -307,12 +346,12 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
             plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'cross_corr_rea_dwd_%s_hr.png' % (temp_agg)))
+            r'cross_corr_rea_dwd_%s_daily.png' % (temp_agg)))
         if test_for_extremes:
             plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'indic_cross_corr_rea_dwd_%s_l_r_hr.png' % (temp_agg)))
+            r'indic_cross_corr_rea_dwd_%s_hr_daily.png' % (temp_agg)))
         plt.close()
         #==================================================================
         # scatter cross correlation
@@ -333,15 +372,21 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
 
                 dwd_vals_all.append([v for v in dwd_vals.values])
                 rea2_vals_all.append([v for v in rea_vals.values])
-                plt.scatter(dwd_vals.values, rea_vals.values,
-                            alpha=0.5,
+                try:
+                    plt.scatter(dwd_vals.values, rea_vals.values,
+                            alpha=0.75,
                             c='r', marker='x')
+                except Exception as msg:
+                    print(msg)
+                    continue
         coefficient_of_dermination = r2_score(np.array([v for val in dwd_vals_all for v in val ]),
                                               np.array([v for val in rea2_vals_all for v in val]))
+        
+        # coefficient_of_dermination = ''
         plt.plot([0, 1], [0, 1], c='k', linestyle='-.')
-        plt.scatter(dwd_vals.values, rea_vals.values,
-                    alpha=0.,
-                    label='$R^{2}=%0.2f$' % coefficient_of_dermination)
+        plt.scatter(dwd_vals_all, rea2_vals_all,
+                    alpha=0.8,
+                    label='$R^{2}=%.2f$' % coefficient_of_dermination)
         plt.grid(alpha=0.5)
         plt.legend(loc=0)
         plt.xlabel('DWD')
@@ -355,12 +400,12 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
             plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'scatter_cross_corr_rea_dwd_%s_hr.png' % (temp_agg)))
+            r'scatter_cross_corr_rea_dwd_%s_daily.png' % (temp_agg)))
         if test_for_extremes:
             plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'scatter_indic_cross_corr_rea_dwd_%s_hr.png' % (temp_agg)))
+            r'scatter_indic_cross_corr_rea_dwd_%s_hr_daily.png' % (temp_agg)))
         
 
     #======================================================================
@@ -385,13 +430,13 @@ for temp_agg, percentile_level in zip(aggs, percentile_levels):
         plt.savefig(os.path.join(
             out_save_dir,
             #             r'analysis',
-            r'indic_corr_all_%d_rea_dwd_%s_hr.png' % (percentile_level, 
+            r'indic_corr_all_%d_rea_dwd_%s_hr_daily.png' % (percentile_level, 
                                                       temp_agg)))
     else:
         plt.savefig(os.path.join(
             out_save_dir,
             #             '/analysis',
-            r'prs_corr_all_rea_dwd_%s_hr.png' % (temp_agg)))
+            r'prs_corr_all_rea_dwd_%s_hr_daily.png' % (temp_agg)))
     plt.close()
 
     # # if not test_for_extremes:
