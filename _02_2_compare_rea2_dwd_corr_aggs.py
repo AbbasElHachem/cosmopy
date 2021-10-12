@@ -86,7 +86,7 @@ for _year in list_years:
                               index_col=0,
                               parse_dates=True,
                               infer_datetime_format=True)
-    in_df_rea2 = in_df_rea2*3600
+    
     # in_df_rea2_qq = pd.read_csv(qq_pcp_Rea[0], sep=';',
                              # index_col=0,
                              # parse_dates=True,
@@ -134,9 +134,9 @@ for _year in list_years:
             ids_sorted = cmn_stns[np.argsort(distrance_to_ngbrs)]
             # calc rank correlation
 
-            df_dwd1 = dwd_pcp_res.loc[:, stn_id].dropna(how='any')
-
-            df_rea1 = in_df_rea2_res.loc[:, stn_id].dropna(how='any')
+            df_dwd1 = np.square(dwd_pcp_res.loc[:, stn_id].dropna(how='any'))
+            
+            df_rea1 = np.square(in_df_rea2_res.loc[:, stn_id].dropna(how='any'))
 
             df_rea1[df_rea1 < 0] = 0
 
@@ -147,8 +147,8 @@ for _year in list_years:
                     df_dwd1.max()
                 for ix2, _id2 in enumerate(ids_sorted):
                     #                 print(ix2, '/', len(ids_sorted))
-                    df_dwd2 = dwd_pcp_res.loc[:, _id2].dropna(how='any')
-                    df_rea2 = in_df_rea2_res.loc[:, _id2].dropna(how='any')
+                    df_dwd2 = np.square(dwd_pcp_res.loc[:, _id2].dropna(how='any'))
+                    df_rea2 = np.square(in_df_rea2_res.loc[:, _id2].dropna(how='any'))
                     df_rea2[df_rea2 < 0] = 0
 
                     cmn_idx = df_dwd1.index.intersection(
@@ -239,12 +239,12 @@ for _year in list_years:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             r'analysis',
-                r'indic_corr_all_%d_rea_dwd_%s_hr.png' % (_year, temp_agg)))
+                r'indic_corr_all_%d_rea_dwd_%s_squared.png' % (_year, temp_agg)))
         else:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             '/analysis',
-                r'prs_corr_all_%d_rea_dwd_%s_hr.png' % (_year, temp_agg)))
+                r'prs_corr_all_%d_rea_dwd_%s_squared.png' % (_year, temp_agg)))
         plt.close()
 
         if not test_for_extremes:
@@ -266,5 +266,5 @@ for _year in list_years:
             plt.savefig(os.path.join(
                 path_to_all_rea2_files,
                 #             r'analysis',
-                r'spr_corr_all_%d_rea_dwd_%s_hr.png' % (_year, temp_agg)))
+                r'spr_corr_all_%d_rea_dwd_%s_squared.png' % (_year, temp_agg)))
             plt.close()
